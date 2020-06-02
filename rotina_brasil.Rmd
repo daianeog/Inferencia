@@ -1,0 +1,166 @@
+---
+title: "Inferência II - UFLA"
+output: html_document
+author: "Bruna Silva - Daiane Oliveira - Luiz Otávio Pala"
+
+---
+
+#<div style="text-align: justify"> 
+## [Covid-19 Brasil](#heading-3)
+
+I) Coronavírus Brasil: Número de casos acumulados e de novos casos no Brasil entre os dias 26/02/2020 e 10/05/2020. Fontes dos dados utilizados: https://covid.saude.gov.br/ e https://covid19.who.int/.
+
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+casos = c(1, 1, 1, 2, 2, 2, 2, 3, 7, 13, 19, 25, 25, 34, 52, 
+          77, 98, 121, 200, 234, 291, 428, 621, 904, 1128,
+          1546, 1891, 2201, 2433, 2915, 3417, 3904, 4256,
+          4579, 5717, 6836, 7910, 9056, 10278, 11130, 12056, 
+          13717, 15927, 17857, 19638, 20727, 22169, 23430, 25262,
+          28320, 30425, 33682, 36599, 38654, 40581, 43079, 45757,
+          49429, 52995, 58509, 61888, 66501, 71886, 78162, 85380,
+          91299, 96396, 101147, 107780, 114715, 125218, 135106,
+          145328, 155939, 162699)
+t = seq(1:length(casos))
+
+## criando o número de novos casos
+novos = c(0); for(i in 2:75){n = c(casos[i]-casos[i-1]); novos = c(novos, n); i = i+1}
+
+# gráfico
+par(mfrow=c(1,2))
+plot(casos, ylab = "casos", xlab = "Dias após o 1 º caso", pch = 16, col = "blue",
+     cex = 0.8, main = "Casos acumulados - Brasil", cex.lab=0.8,
+     cex.axis = 0.8)
+plot(novos, ylab = "casos", xlab = "Dias após o 1 º caso", pch = 16, col = "blue",
+     cex = 0.8, main = "Novos casos - Brasil", cex.lab=0.8,
+     cex.axis = 0.8)
+```
+
+
+### [Efeito exponencial](#heading-3)
+
+Para identificar períodos de mudança do comportamento exponencial, vamso construir uma regressão da seguinte forma: $log(casos) ~ t + \epsilon$. Posteriormente, criar os os intervalos de confiança a 95\%:
+
+
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+modelo = lm(log(casos) ~ t)
+
+# gráfico
+plot(log(casos), ylab = "log - casos", xlab = "Dias após o 1 º caso", pch = 16, col = "blue",
+     cex = 0.8, main = "Log - Casos acumulados - Brasil", cex.lab=0.8, cex.axis = 0.8)
+lines(1:length(casos),modelo$coefficients[1] + modelo$coefficients[2]*t, col = "red", lty =2)
+lines(1:length(casos),confint(modelo)[1] + confint(modelo)[2]*t, col = "gray", lty =2)
+lines(1:length(casos),confint(modelo)[3] + confint(modelo)[4]*t, col = "gray", lty =2)
+
+# apresentando os pontos acima do LS 
+threshold = c(which(log(casos)>confint(modelo)[3] + confint(modelo)[4]*t))
+text(33, 10, "Pontos > LS", cex =0.8, lty=c(1), col = "darkgray")
+points(c(rep(NA,22),log(casos[23:43])), col = "red")
+```
+Vamos definir 3 regiões na especificação do modelo, sendo elas: $Q_1$ t$\in${1:21}; $Q_2$ t$\in${22:43}; $Q_3$ t$\in${44:T}. A partir disso construir um modelo de regressão generalizado especificando essas regiões, da seguinte forma:
+
+## [Usando três modelos](#heading-3)
+
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+plot(novos, pch = 16, col = "blue", cex = 0.8, main = "Novos casos - Brasil (3 modelos)", cex.lab=0.8,
+  cex.axis = 0.8, xlab = "Dias após o 1º caso") 
+infectados_01= novos[1:21]
+infectados_02= novos[22:43]
+infectados_03= novos[44:74]
+
+md1 = glm(infectados_01 ~ t[1:21], family = "poisson")
+lines(1:21,fitted(md1), col="blue")
+md2 = glm(infectados_02 ~ t[22:43], family = "poisson")
+lines(22:43,fitted(md2), col="orange")
+md3 = glm(infectados_03 ~ t[44:74], family = "poisson")
+lines(44:74,fitted(md3), col="green")
+```
+
+## [Usando um modelo de Poisson](#heading-3)
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+# criando o modelo com uma dummie
+dummie = factor((c(rep(0,22), rep(1,21), rep(2,32))))
+md = glm(novos ~ t+ dummie, family = "poisson")
+plot(novos, pch = 16, col = "blue", cex = 0.8, main = "Novos casos - Brasil", cex.lab=0.8, cex.axis = 0.8,
+     xlab = "Dias após o 1º caso")
+lines(fitted(md), col="orange")
+```
+
+## [Varginha](#heading-3)
+
+
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+casos_ac_vga = c(3,3,4,4,5,6,6,7,7,7,7,7,10,11,11,11,11,11,	11,11,11,12,12,12,15,16,16,18,21,21,21,21,21,21,22,25,32)
+par(mfrow=c(1,2))
+plot(casos_ac_vga, pch = 16, col = "blue", cex = 0.8, main = "Casos acumulados - Varginha", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+
+# novos casos em Varginha
+novos = c(0); for(i in 2:37){n = c(casos_ac_vga[i]-casos_ac_vga[i-1]); novos = c(novos, n); i = i+1}
+
+plot(novos, pch = 16, col = "blue", cex = 0.8, main = "Novos casos - Varginha", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+text(33, 7, "11/05", cex =0.8, lty=c(1), col = "darkgray")
+
+# modelo de poisson para os novos casos - Varginha
+t = 1:37
+md = glm(novos ~ t, family = "poisson")
+lines(fitted(md), col="orange")
+```
+
+## [Lavras](#heading-3)
+
+
+```{r, echo = T, fig.align='center', fig.height = 4.4, fig.width = 8}
+casos_ac_la = c(1,1,1,2,2,3,3,3,3,3,3,3,3,4,4,4,4,5,6,6,7,7,7,
+               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,9)
+par(mfrow=c(1,2))
+plot(casos_ac_la, pch = 16, col = "blue", cex = 0.8, 
+     main = "Casos acumulados - Lavras", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+
+# novos casos em Lavras
+novos = c(0); for(i in 2:40){n = c(casos_ac_la[i]-casos_ac_la[i-1]); novos = c(novos, n); i = i+1}
+
+plot(novos, pch = 16, col = "blue", cex = 0.8, main = "Novos casos - Lavras", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+text(36, 2, "11/05", cex =0.8, lty=c(1), col = "darkgray")
+
+# modelo de poisson para os novos casos - Lavras
+t = 1:40
+md = glm(novos ~ t, family = "poisson")
+lines(fitted(md), col="orange")
+```
+
+## [China e Itália](#heading-3)
+Número de casos acumulados de covid-19 para a China e Itália entre os dias 11/01/2020-11/05/2020 e  29/01/2020-11/05/2020, respectivamente (dados coletados às 14:00 do dia 11/05).
+
+
+```{r, echo = F, fig.align='center', fig.height = 4.4, fig.width = 8}
+setwd("/home/luiz/Dropbox/DOUTORADO/INFERÊNCIA II/aulla_12_05")
+dados = read.delim("dados_who.txt",h = T)
+ch = subset(dados, Country.Name == "China")
+it = subset(dados, Country.Name == "Italy")
+par(mfrow=c(1,2))
+plot(ch$Cumulative.Confirmed, type = "l",col = "blue", cex = 0.8, main = "Casos acumulados - China", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+plot(it$Cumulative.Confirmed,type = "l",col = "blue", cex = 0.8, main = "Casos acumulados - Itália", cex.lab=0.8, cex.axis = 0.8, xlab = "Dias após o 1º caso", ylab = "Casos")
+```
+Modelos de regresão para analisar o efeito exponencial na China e na Itália.
+
+```{r, echo = F, fig.align='center', fig.height = 4.4, fig.width = 8}
+par(mfrow=c(1,2))
+# modelo para a china
+t=1:length(ch$Cumulative.Confirmed)
+modelo = lm(log(ch$Cumulative.Confirmed) ~ t)
+plot(log(ch$Cumulative.Confirmed), ylab = "log - casos", xlab = "Dias após o 1 º caso", pch = 16, col = "blue",
+     cex = 0.8, main = "Log(casos acumulados) - China", cex.lab=0.8, cex.axis = 0.8)
+lines(1:length(ch$Cumulative.Confirmed),modelo$coefficients[1] + modelo$coefficients[2]*t, col = "red", lty =2)
+lines(1:length(ch$Cumulative.Confirmed),confint(modelo)[1] + confint(modelo)[2]*t, col = "gray", lty =2)
+lines(1:length(ch$Cumulative.Confirmed),confint(modelo)[3] + confint(modelo)[4]*t, col = "gray", lty =2)
+
+# modelo para a Itália
+t=1:length(it$Cumulative.Confirmed)
+modelo = lm(log(it$Cumulative.Confirmed) ~ t)
+plot(log(it$Cumulative.Confirmed), ylab = "log - casos", xlab = "Dias após o 1 º caso", pch = 16, col = "blue",
+     cex = 0.8, main = "Log(Casos acumulados) - Itália", cex.lab=0.8, cex.axis = 0.8)
+lines(1:length(it$Cumulative.Confirmed),modelo$coefficients[1] + modelo$coefficients[2]*t, col = "red", lty =2)
+lines(1:length(it$Cumulative.Confirmed),confint(modelo)[1] + confint(modelo)[2]*t, col = "gray", lty =2)
+lines(1:length(it$Cumulative.Confirmed),confint(modelo)[3] + confint(modelo)[4]*t, col = "gray", lty =2)
+
+
+```
